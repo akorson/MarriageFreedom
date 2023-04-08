@@ -1,79 +1,66 @@
 const User = require('../models/userModel');
-const { generateToken } = require('../utils/auth');
+const bcrypt = require('bcryptjs');
+const jwt = require('jsonwebtoken');
 
-exports.registerUser = async (req, res) => {
-  try {
-    const { email, password, role } = req.body;
+exports.register = async (req, res) => {
+    try {
+        const { email, password, role } = req.body;
+        const userExists = await User.findOne({ email });
 
-    const userExists = await User.findOne({ email });
+        if (userExists) {
+            return res.status(400).json({ error: 'User already exists' });
+        }
 
-    if (userExists) {
-      res.status(400).json({
-        status: 'fail',
-        message: 'Email already in use',
-      });
-      return;
+        const hashedPassword = await bcrypt.hash(password, 10);
+        const newUser = new User({ email, password: hashedPassword, role });
+
+        await newUser.save();
+
+        res.status(201).json({ message: 'User registered successfully' });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
-
-    const newUser = new User({
-      email,
-      password,
-      role,
-    });
-
-    const savedUser = await newUser.save();
-    const token = generateToken(savedUser._id);
-
-    res.status(201).json({
-      status: 'success',
-      data: {
-        user: {
-          _id: savedUser._id,
-          email: savedUser.email,
-          role: savedUser.role,
-        },
-        token,
-      },
-    });
-  } catch (error) {
-    res.status(400).json({
-      status: 'fail',
-      message: error.message,
-    });
-  }
 };
 
-exports.loginUser = async (req, res) => {
-  try {
-    const { email, password } = req.body;
+exports.login = async (req, res) => {
+    try {
+        const { email, password } = req.body;
+        const user = await User.findOne({ email });
 
-    const user = await User.findOne({ email });
+        if (!user) {
+            return res.status(400).json({ error: 'User not found' });
+        }
 
-    if (!user || !(await user.comparePassword(password))) {
-      res.status(401).json({
-        status: 'fail',
-        message: 'Invalid email or password',
-      });
-      return;
+        const isPasswordValid = await bcrypt.compare(password, user.password);
+
+        if (!isPasswordValid) {
+            return res.status(400).json({ error: 'Invalid password' });
+        }
+
+        const token = jwt.sign({ id: user._id, role: user.role }, process.env.JWT_SECRET, { expiresIn: '1h' });
+
+        res.status(200).json({ token });
+    } catch (error) {
+        res.status(500).json({ error: error.message });
     }
+};
 
-    const token = generateToken(user._id);
+// Get clients for Marriage Freedom staff
+exports.getMarriageFreedomClients = async (req, res) => {
+    try {
+        const clients = await User.find({ role: 'client' });
+        res.status(200).json(clients);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
+};
 
-    res.status(200).json({
-      status: 'success',
-      data: {
-        user: {
-          _id: user._id,
-          email: user.email,
-          role: user.role,
-        },
-        token,
-      },
-    });
-  } catch (error) {
-    res.status(400).json({
-      status: 'fail',
-      message: error.message,
-    });
-  }
+// Get clients for CFA staff
+exports.getCfaClients = async (req, res) => {
+    try {
+        const clients = await User.find({ role: 'cfaClient' });
+        res.status(200).json(clients);
+    } catch (error) {
+        res.status(500).json({ error: error.message });
+    }
 };
