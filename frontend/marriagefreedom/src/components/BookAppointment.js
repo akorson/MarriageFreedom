@@ -24,7 +24,7 @@ function BookAppointment() {
           height="100%"
           frameBorder="0"
           title="Book Appointment"
-        ></iframe>
+         />
       </div>
     </div>
   );
