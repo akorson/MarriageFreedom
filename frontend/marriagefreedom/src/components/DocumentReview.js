@@ -53,7 +53,7 @@ function DocumentReview() {
             onChange={(e) => setDocumentContent(e.target.value)}
             rows={20}
             cols={80}
-          ></textarea>
+           />
           <button onClick={handleSaveChanges}>Save Changes</button>
         </>
       )}
